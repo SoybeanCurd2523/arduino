@@ -1,7 +1,11 @@
-#include <ros.h>
-#include <std_msgs/Float64.h>
+#define PI 3.141592
+#define deg2rad PI/180
+#define T 10
 
-ros::NodeHandle  nh;
+int i = 0;
+
+const int trigPin = 42;
+const int echoPin = 44;
 
 // motor control pin
 const int ENABLE = 3;
@@ -15,24 +19,12 @@ const int motorPWMPin_2 = 11; // L298 Input 4
 int left_rpm = 255; // 0~255
 int right_rpm = 255;
 
-void left_callback( const std_msgs::Float64& msg){
-
-  left_rpm = (int)msg.data;
- 
-}
-
-void right_callback(const std_msgs::Float64& msg2){ // note : msg2 
-
-  right_rpm = (int)msg2.data; // note : msg2 
-  
-}
-
-ros::Subscriber<std_msgs::Float64> left_sub("left_data", left_callback);
-
-ros::Subscriber<std_msgs::Float64> right_sub("right_data", right_callback);
+// defines ToF's variables
+long duration;
+float distance;
 
 void setup() {
-  nh.initNode();
+ 
   pinMode(motorDirPin, OUTPUT);
   pinMode(motorPWMPin, OUTPUT);
   pinMode(ENABLE, OUTPUT);
@@ -40,25 +32,45 @@ void setup() {
   pinMode(motorDirPin_2, OUTPUT);
   pinMode(motorPWMPin_2, OUTPUT);
   pinMode(ENABLE_2, OUTPUT);
-  Serial.begin(57600);
 
-  nh.subscribe(left_sub);
-  nh.subscribe(right_sub);
+  pinMode(trigPin, OUTPUT); 
+  pinMode(echoPin, INPUT); 
+
+  Serial.begin(57600);
 }
 
 void loop() {
-  nh.spinOnce();
+
 
 //  Serial.print("left_rpm : ");
 //  Serial.println(left_rpm); 
 
+
+
+  right_rpm = 215 * ( ( 1+cos(i*deg2rad * 2*PI / T) ) /2) + 40 ;
+
   Serial.print("right_rpm : ");
   Serial.println(right_rpm);
   Serial.println("=======================");
-
-  move(left_rpm, right_rpm);
   
+  move(left_rpm, right_rpm);
+
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPin, HIGH);
   delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  duration = pulseIn(echoPin, HIGH);
+  distance= duration*0.034/2;
+  
+//  Serial.print("distance : ");
+//  Serial.print(distance);
+//  Serial.println("cm");
+
+  i+=5;
+//  delayMicroseconds(10);
 }
 
 void move(int left_rpm, int right_rpm){
