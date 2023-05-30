@@ -1,5 +1,7 @@
 ///////////////////////////// 선언 및초기화
 #define PI 3.141592
+#define DEG2RAD PI/180
+#define RAD2DEG 180/PI
 
 int led = 13;
 double t_prev;
@@ -14,7 +16,10 @@ int inputDeg2 = 0;
 double th_init, final, th_ref, th_ref2;
 double t = 0;
 
-
+double l1 = 150; // 링크 길이. 밀리미터
+double l2 = 150;
+double th1, th2;
+int tarX,tarY;
 ///////////////////////// 타이머 사용을 위한 레지스터 선언 및 기타
 
 void setup() {
@@ -34,20 +39,34 @@ void setup() {
   t_prev = micros();
 }
 
-void loop() {
-  if(Serial.available() > 0) // 시리얼 모니터에서 new line 이면 문자열을 보내고 줄바꿈을 보낸다. no line ending으로
-  {
-    inputDeg = Serial.parseInt(); // 문자열을 정수로 변환
-    inputDeg2 = Serial.parseInt();
-//    inputDeg2 = Serial.parseInt(); 
-  t = 0;
-  //th_init = inputDeg;
 
-  
-  }
-    
-    Serial.println(inputDeg);
-    Serial.println(inputDeg2);
+
+
+void loop() {
+//  if(Serial.available() > 0) // 시리얼 모니터에서 new line 이면 문자열을 보내고 줄바꿈을 보낸다. no line ending으로
+//  {
+//
+//    tarX = Serial.parseInt(); // 목표 end effector 위치. 밀리미터
+//    tarY = Serial.parseInt();
+//
+//    // radian
+//    th2 = PI - acos( ( l1*l1 + l2*l2 - (double)tarX*(double)tarX - (double)tarY*(double)tarY ) / (2*l1*l2) );
+//    th1 = atan2((double)tarY,(double)tarX) - atan2(l2 * sin(th2), l1+l2*cos(th2));  //th1보다 th2먼저 계산해야
+//
+//    Serial.print("th1 : ");
+//    Serial.println(th1*180./PI);
+//    Serial.print("th2 : ");
+//    Serial.println(th2*180./PI);
+//
+//  }
+}
+
+
+void IK(double tarX, double tarY)
+{
+  // radian
+    th2 = PI - acos( ( l1*l1 + l2*l2 - (double)tarX*(double)tarX - (double)tarY*(double)tarY ) / (2*l1*l2) );
+    th1 = atan2((double)tarY,(double)tarX) - atan2(l2 * sin(th2), l1+l2*cos(th2));  
 }
 
 /////////////////// 레지스터에서 설정한 주기마다(1ms) 타이머 인터럽트 실행
@@ -62,18 +81,36 @@ ISR(TIMER1_COMPA_vect){
     digitalWrite(led, LOW);
 
   CNT++;
-  t+=0.001;
+  t+=0.001; // 1ms
   
-  
-  if(t<10){ 
-    th_ref = func_1_cos(t, th_init, inputDeg, 10); 
-    th_ref2 = func_1_cos(t, th_init, inputDeg2, 10); 
+  if(t<3){ // 관절 관점. joint space
+    th_ref = func_1_cos(t, th_init, 30*DEG2RAD, 3); 
+    th_ref2 = func_1_cos(t, th_init, 120*DEG2RAD, 3); 
     servoOut1(th_ref); 
     servoOut2(th_ref2); 
     }
-  
-//  servoOut1(inputDeg);
-//  servoOut2(inputDeg2);
+
+  if(t>3 && t<6){  // 역기구학. cartesian coordinates
+    IK(-0.05, 0.15);
+    th_ref = func_1_cos(t, th_ref, th1, 6-3); 
+    th_ref2 = func_1_cos(t, th_ref2, th2, 6-3); 
+    servoOut1(th_ref); 
+    servoOut2(th_ref2); 
+    }
+
+  if(t>6 && t<9){ 
+    IK(0.15, 0);
+    th_ref = func_1_cos(t, th_ref, th1, 9-6); 
+    th_ref2 = func_1_cos(t, th_ref2, th2, 9-6); 
+    servoOut1(th_ref); 
+    servoOut2(th_ref2); 
+    }
+  if(t>9 && t<12){ 
+    th_ref = func_1_cos(t, th_ref, 0, 12-9); 
+    th_ref2 = func_1_cos(t, th_ref2, 0, 12-9); 
+    servoOut1(th_ref); 
+    servoOut2(th_ref2); 
+    } 
 }
 
 ///////////////////////////////// 레지스터 설정
